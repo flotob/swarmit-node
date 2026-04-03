@@ -1,8 +1,7 @@
 FROM ethersphere/bee:latest
 
-COPY bee.yaml /home/bee/.bee.yaml
-
 USER root
+COPY bee.yaml /root/.bee.yaml
 
 EXPOSE 1633
 
