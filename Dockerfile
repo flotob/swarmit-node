@@ -7,6 +7,7 @@ CMD [ \
   "start", \
   "--mainnet", \
   "--full-node=false", \
+  "--swap-enable=true", \
   "--storage-incentives-enable=false", \
   "--skip-postage-snapshot", \
   "--api-addr=0.0.0.0:1633", \
