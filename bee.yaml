@@ -1,8 +1,0 @@
-api-addr: 0.0.0.0:1633
-mainnet: true
-full-node: false
-swap-enable: true
-storage-incentives-enable: false
-skip-postage-snapshot: true
-resolver-options: https://cloudflare-eth.com
-cors-allowed-origins: "*"
