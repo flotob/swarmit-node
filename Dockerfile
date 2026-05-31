@@ -1,4 +1,4 @@
-FROM ethersphere/bee:latest
+FROM ethersphere/bee:2.8.0
 
 EXPOSE 1633
 
