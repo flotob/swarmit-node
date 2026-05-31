@@ -11,6 +11,7 @@ CMD [ \
   "--storage-incentives-enable=false", \
   "--skip-postage-snapshot", \
   "--api-addr=0.0.0.0:1633", \
+  "--blockchain-rpc-endpoint=https://rpc.gnosischain.com", \
   "--resolver-options=https://cloudflare-eth.com", \
   "--cors-allowed-origins=*" \
 ]
