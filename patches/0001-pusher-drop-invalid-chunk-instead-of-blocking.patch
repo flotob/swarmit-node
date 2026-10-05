@@ -1,0 +1,72 @@
+diff --git a/pkg/pusher/pusher.go b/pkg/pusher/pusher.go
+index 9e55fd1..39bd5d9 100644
+--- a/pkg/pusher/pusher.go
++++ b/pkg/pusher/pusher.go
+@@ -220,7 +220,18 @@ func (s *Service) chunksWorker(startupStabilizer stabilization.Subscriber) {
+ 		case op := <-cc:
+ 			idAddress, err := storage.IdentityAddress(op.Chunk)
+ 			if err != nil {
+-				op.Err <- err
++				if op.Direct {
++					op.Err <- err
++				} else {
++					// A deferred op has no Err channel: sending on the nil
++					// channel blocked this worker forever and stalled all
++					// push-sync. Drop the invalid chunk from the push queue,
++					// as pushDeferred does for chunks it cannot sync.
++					s.logger.Error(err, "pusher: invalid chunk in push queue, dropping", "chunk_address", op.Chunk.Address())
++					if rerr := s.storer.Report(ctx, op.Chunk, storage.ChunkCouldNotSync); rerr != nil {
++						s.logger.Error(rerr, "pusher: failed to report invalid chunk", "chunk_address", op.Chunk.Address())
++					}
++				}
+ 				continue
+ 			}
+ 			op.identityAddress = idAddress
+diff --git a/pkg/pusher/pusher_test.go b/pkg/pusher/pusher_test.go
+index 4abe0d6..c785667 100644
+--- a/pkg/pusher/pusher_test.go
++++ b/pkg/pusher/pusher_test.go
+@@ -425,3 +425,43 @@ func createPusher(
+ 
+ 	return pusherService
+ }
++
++// TestInvalidChunkDoesNotBlockPusher: a queued chunk that is neither a valid
++// content-addressed chunk nor a parseable single-owner chunk makes
++// storage.IdentityAddress fail. For a deferred op (no Err channel) the worker
++// used to send that error on a nil channel and block forever, so nothing was
++// pushed again — across restarts, since the chunk stays in the push queue.
++func TestInvalidChunkDoesNotBlockPusher(t *testing.T) {
++	t.Parallel()
++
++	key, _ := crypto.GenerateSecp256k1Key()
++	signer := crypto.NewDefaultSigner(key)
++
++	pushSyncService := pushsyncmock.New(func(ctx context.Context, chunk swarm.Chunk) (*pushsync.Receipt, error) {
++		signature, _ := signer.Sign(chunk.Address().Bytes())
++		return &pushsync.Receipt{Address: swarm.NewAddress(chunk.Address().Bytes()), Signature: signature, Nonce: block}, nil
++	})
++
++	storer := &mockStorer{chunks: make(chan swarm.Chunk)}
++	_ = createPusher(t, storer, pushSyncService, defaultMockBatchStore, defaultRetryCount)
++
++	valid := testingc.GenerateTestRandomChunk()
++	addr := make([]byte, swarm.HashSize)
++	for i := range addr {
++		addr[i] = 0xab
++	}
++	// Shorter than a SOC header and not hashing to addr: neither CAC nor SOC.
++	invalid := swarm.NewChunk(swarm.NewAddress(addr), []byte("not a chunk")).WithStamp(valid.Stamp())
++
++	go func() {
++		storer.chunks <- invalid
++		storer.chunks <- valid
++	}()
++
++	if err := spinlock.Wait(spinTimeout, func() bool { return storer.isReported(valid, storage.ChunkSynced) }); err != nil {
++		t.Fatalf("pusher stalled behind an invalid chunk: %v", err)
++	}
++	if !storer.isReported(invalid, storage.ChunkCouldNotSync) {
++		t.Fatal("invalid chunk was not reported as could-not-sync")
++	}
++}
