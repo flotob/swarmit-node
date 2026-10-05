@@ -3,7 +3,8 @@
 # error on a deferred op's nil Err channel (pkg/pusher/pusher.go chunksWorker)
 # — so nothing was pushed again, across restarts and versions (2026-10-04,
 # ~14h of every service's uploads stuck on this node). Unfixed upstream as of
-# v2.8.2 / master. Go back to `FROM ethersphere/bee:<version>` once it is.
+# v2.8.2 / master (https://github.com/ethersphere/bee/issues/5641). Go back to
+# `FROM ethersphere/bee:<version>` once a release fixes it.
 FROM golang:1.26 AS build
 RUN git clone --depth 1 --branch v2.8.2 https://github.com/ethersphere/bee.git /src
 WORKDIR /src
