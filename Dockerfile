@@ -1,19 +1,10 @@
-# Bee v2.8.2 built from source with one patch (patches/): the pusher blocked
-# forever on a queued chunk that is neither a valid CAC nor a SOC — it sent the
-# error on a deferred op's nil Err channel (pkg/pusher/pusher.go chunksWorker)
-# — so nothing was pushed again, across restarts and versions (2026-10-04,
-# ~14h of every service's uploads stuck on this node). Unfixed upstream as of
-# v2.8.2 / master (https://github.com/ethersphere/bee/issues/5641). Go back to
-# `FROM ethersphere/bee:<version>` once a release fixes it.
-FROM golang:1.26 AS build
-RUN git clone --depth 1 --branch v2.8.2 https://github.com/ethersphere/bee.git /src
-WORKDIR /src
-COPY patches/ /patches/
-# -p=2 caps compile parallelism: the host has 4 GB RAM and runs other services.
-RUN git apply /patches/*.patch && GOFLAGS=-p=2 make binary
-
-FROM ethersphere/bee:2.8.2
-COPY --from=build /src/dist/bee /usr/local/bin/bee
+# Stock Bee v2.8.3. v2.8.3 ships the upstream fix for the pusher deadlock we
+# used to patch ourselves (ethersphere/bee#5641, fixed by #5647), plus security
+# fixes (SOC verification on pushsync, joiner bounds checks), so we're back on
+# the official image and no longer build from source. The postage snapshot is
+# no longer skipped: on an empty batch store Bee loads its bundled snapshot
+# instead of scanning the chain from the public RPC 1000 blocks at a time.
+FROM ethersphere/bee:2.8.3
 
 EXPOSE 1633
 
@@ -24,7 +15,6 @@ CMD [ \
   "--full-node=false", \
   "--swap-enable=true", \
   "--storage-incentives-enable=false", \
-  "--skip-postage-snapshot", \
   "--api-addr=0.0.0.0:1633", \
   "--blockchain-rpc-endpoint=https://rpc.gnosischain.com", \
   "--resolver-options=https://cloudflare-eth.com", \

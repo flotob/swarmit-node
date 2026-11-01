@@ -1,6 +1,8 @@
 # swarmit-node
 
-Bee light node for the Swarmit curator, packaged for Railway deployment.
+Bee light node (stock `ethersphere/bee:2.8.3`) shared by the Swarmit curator and other services, deployed with Coolify on the Hetzner server. (Originally packaged for Railway; the variables below still apply.)
+
+Until 2.8.3 this repo built a patched Bee from source to work around a pusher deadlock (ethersphere/bee#5641). 2.8.3 includes the upstream fix (#5647), so the patch is gone; see git history if you need it.
 
 ## Railway Environment Variables
 
